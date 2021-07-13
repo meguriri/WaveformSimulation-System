@@ -1,0 +1,145 @@
+[
+    {
+        "waveName": "波形1",
+        "wave": [
+            {
+                "type": "脉冲",
+                "firstTime": "0",
+                "secondTime": "20",
+                "amp": "50"
+            },
+            {
+                "type": "阶梯",
+                "firstTime": "21",
+                "secondTime": "31",
+                "amp": "0",
+                "stepH": "10",
+                "stepDur": "2",
+                "stepNum": "5"
+            }
+        ]
+    },
+    {
+        "waveName": "波形2",
+        "wave": [
+            {
+                "type": "斜坡",
+                "firstTime": "0",
+                "secondTime": "10",
+                "firstamp": "10",
+                "secondamp": "50"
+            },
+            {
+                "type": "阶跃",
+                "firstTime": "11",
+                "secondTime": "21",
+                "amp": "50",
+                "stepH": "10",
+                "stepDur": "2",
+                "stepNum": "5"
+            }
+        ]
+    },
+    {
+        "waveName": "波形3",
+        "wave": [
+            {
+                "type": "正弦",
+                "firstTime": "0",
+                "secondTime": "20",
+                "amp": "10",
+                "av": "2",
+                "diff": "1"
+            },
+            {
+                "type": "脉冲",
+                "firstTime": "21",
+                "secondTime": "35",
+                "amp": "20"
+            },
+            {
+                "type": "双斜坡",
+                "ffirstTime": "36",
+                "fsecondTime": "46",
+                "ffamp": "20",
+                "fsamp": "40",
+                "sfirstTime": "50",
+                "ssecondTime": "60",
+                "sfamp": "40",
+                "ssamp": "0"
+            }
+        ]
+    },
+    {
+        "waveName": "波形4",
+        "wave": [
+            {
+                "type": "双斜坡",
+                "ffirstTime": "0",
+                "fsecondTime": "20",
+                "ffamp": "10",
+                "fsamp": "70",
+                "sfirstTime": "30",
+                "ssecondTime": "40",
+                "sfamp": "70",
+                "ssamp": "40"
+            },
+            {
+                "type": "阶梯",
+                "firstTime": "31",
+                "secondTime": "41",
+                "amp": "40",
+                "stepH": "-5",
+                "stepDur": "2",
+                "stepNum": "5"
+            },
+            {
+                "type": "常量",
+                "firstTime": "42",
+                "secondTime": "50",
+                "amp": "10"
+            },
+            {
+                "type": "正弦",
+                "firstTime": "51",
+                "secondTime": "71",
+                "amp": "20",
+                "av": "1",
+                "diff": "3"
+            }
+        ]
+    },
+    {
+        "waveName": "波形5",
+        "wave": [
+            {
+                "type": "斜坡",
+                "firstTime": "0",
+                "secondTime": "20",
+                "firstamp": "30",
+                "secondamp": "50"
+            },
+            {
+                "type": "阶跃",
+                "firstTime": "21",
+                "secondTime": "41",
+                "amp": "50",
+                "stepH": "-5",
+                "stepDur": "2",
+                "stepNum": "10"
+            },
+            {
+                "type": "脉冲",
+                "firstTime": "42",
+                "secondTime": "52",
+                "amp": "20"
+            },
+            {
+                "type": "常量",
+                "firstTime": "52",
+                "secondTime": "72",
+                "amp": "-50"
+            }
+        ]
+    }
+]

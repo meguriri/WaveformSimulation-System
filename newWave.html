@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>波形仿真工具</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script type="text/javascript" src="/js/FileSaver.js"></script>
+  <script type="text/javascript" src="https://cdn.staticfile.org/jquery/2.1.1/jquery.min.js"></script>
+  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <script src="https://cdn.staticfile.org/echarts/4.3.0/echarts.min.js"></script>
+  <script src="https://code.jquery.com/jquery.js"></script>
+  <script src="https://cdn.staticfile.org/jquery/1.10.2/jquery.min.js"></script>
+  <script>
+    htmlobj = $.ajax({ url: "/js/wave.json", async: false });
+    s = htmlobj.responseText;
+    obj = JSON.parse(s);
+    //波形的数据级
+    function showWave(obj, binddiv) {
+      let name = obj.waveName;
+      let data = [];
+      let ji = 0;
+      console.log(name);
+      console.log(binddiv);
+      for (let i = 0; i < obj.wave.length; i++) {
+        console.log(obj.wave[i].type);
+        switch (obj.wave[i].type) {
+          case '常量': {
+            let firstTime = obj.wave[i].firstTime;
+            let secondTime = obj.wave[i].secondTime;
+            let amp = obj.wave[i].amp;
+            for (let i = firstTime; i <= secondTime; i++) {
+              data.push([ji, amp]);
+              ji++;
+            }
+          }
+            break;
+          case '脉冲': {
+            let firstTime = obj.wave[i].firstTime;
+            let secondTime = obj.wave[i].secondTime;
+            let amp = obj.wave[i].amp;
+            for (let i = firstTime * 100; i < secondTime * 100; i++) {
+              ji += 0.01;
+              if ((0 | (i / 100)) % 2 == 0)
+                data.push([ji, amp]);
+              else {
+                data.push([ji, 0]);
+              }
+            }
+            ji++;
+          }
+            break;
+          case '斜坡': {
+            let b4, k4;
+            let firstTime = obj.wave[i].firstTime;
+            let secondTime = obj.wave[i].secondTime;
+            let firstamp = obj.wave[i].firstamp;
+            let secondamp = obj.wave[i].secondamp;
+            k4 = (firstamp - secondamp) / (firstTime - secondTime);
+            b4 = firstamp - k4 * firstTime;
+            for (let i = firstTime; i <= secondTime; i++) {
+              data.push([ji, k4 * i + b4]);
+              ji++;
+            }
+          }
+            break;
+          case '双斜坡': {
+            let b5, k5, k55, b55, f;
+            let ft5 = obj.wave[i].ffirstTime;
+            let st5 = obj.wave[i].fsecondTime;
+            let famp5 = obj.wave[i].ffamp;
+            let samp5 = obj.wave[i].fsamp;
+            let ft55 = obj.wave[i].sfirstTime;
+            let st55 = obj.wave[i].ssecondTime;
+            let famp55 = obj.wave[i].sfamp;
+            let samp55 = obj.wave[i].ssamp;
+            k5 = (famp5 - samp5) / (ft5 - st5);
+            b5 = famp5 - k5 * ft5;
+            k55 = (famp55 - samp55) / (ft55 - st55);
+            b55 = famp55 - k55 * ft55;
+            f = k5 * st5 + b5;
+            for (let i = ft5; i <= st55; i++) {
+              if (i >= ft5 && i <= st5) {
+                data.push([ji, k5 * i + b5]);
+                ji++;
+              }
+              else if (i > st5 && i < ft55) {
+                data.push([ji, f]);
+                ji++;
+              }
+              else if (i >= ft55 && i <= st55) {
+                data.push([ji, k55 * i + b55]);
+                ji++;
+              }
+            }
+
+          }
+            break;
+          case '阶梯': {
+            let firstTime = obj.wave[i].firstTime;
+            let secondTime = obj.wave[i].secondTime;
+            let amp = obj.wave[i].amp;
+            let stepH = obj.wave[i].stepH;
+            let stepDur = obj.wave[i].stepDur;
+            let stepNum = obj.wave[i].stepNum;
+            let k2 = Number(amp);
+            let h2 = Number(stepH);
+            for (let i = firstTime; i <= secondTime; i++) {
+              data.push([ji, k2]);
+              ji++;
+              if ((i - firstTime) % stepDur == 0) {
+                k2 = k2 + h2;
+              }
+            }
+          }
+            break;
+          case '阶跃': {
+            let firstTime = obj.wave[i].firstTime;
+            let secondTime = obj.wave[i].secondTime;
+            let amp = obj.wave[i].amp;
+            let stepH = obj.wave[i].stepH;
+            let stepDur = obj.wave[i].stepDur;
+            let stepNum = obj.wave[i].stepNum;
+            let k3 = Number(amp);
+            let h3 = Number(stepH);
+            for (let i = firstTime * 100; i <= secondTime * 100; i++) {
+              if ((i / 100 - firstTime) % stepDur == 0 && i != firstTime * 100) {
+                k3 = k3 + h3;
+                data.push([ji, '']);
+                ji += 0.01;
+              }
+              else {
+                data.push([ji, k3]);
+                ji += 0.01;
+              }
+            }
+          }
+            break;
+          case '正弦': {
+            let y_ji = 0;
+            let firstTime = obj.wave[i].firstTime;
+            let secondTime = obj.wave[i].secondTime;
+            let amp = obj.wave[i].amp;
+            let av = obj.wave[i].av;
+            let diff = obj.wave[i].diff;
+            function sin_data(x) {
+              return amp * Math.sin(x * Math.PI * av + diff);
+            }
+            for (let i = firstTime * 10; i <= secondTime * 10; i++) {
+              y_ji = sin_data(ji);
+              data.push([ji, y_ji]);
+              ji += 0.1;
+            }
+            break;
+          }
+        }
+      }
+      let chartDom = document.getElementById(binddiv);
+      let myChart = echarts.init(chartDom);
+      let Option = {
+        animation: false,
+        title: {
+          text: name,
+          left: 20,
+        },
+        grid: {
+          top: 40,
+          left: 80,
+          right: 40,
+          bottom: 50
+        },
+        xAxis: {
+          name: 'x',
+          minorTick: {
+            show: true
+          },
+          minorSplitLine: {
+            show: true
+          }
+        },
+        yAxis: {
+          name: 'y',
+          min: -100,
+          max: 100,
+          minorTick: {
+            show: true
+          },
+          minorSplitLine: {
+            show: true
+          }
+        },
+        dataZoom: [{
+          show: true,
+          type: 'inside',
+          filterMode: 'none',
+          xAxisIndex: [0],
+          startValue: -20,
+          endValue: 20
+        }, {
+          show: true,
+          type: 'inside',
+          filterMode: 'none',
+          yAxisIndex: [0],
+          startValue: -20,
+          endValue: 20
+        }],
+        series: [
+          {
+            type: 'line',
+            showSymbol: false,
+            color: ['#337ab7'],
+            clip: true,
+            data: data,
+          }
+        ]
+      };
+      Option && myChart.setOption(Option);
+    }
+    //
+    var x = 0;
+    function getJsonLength(jsonData) {
+      var jsonLength = 0;
+      for (var item in jsonData) {
+        jsonLength++;
+      }
+      return jsonLength;
+    }
+
+    function getWaveList() {
+      for (let i = 0; i < 10; i++) {
+        $('#waveTable tbody').find('tr').eq(i).hide();
+      }
+      for (let i = 0; i < getJsonLength(obj); i++) {
+        $('#waveTable tbody').find('tr').eq(i).show();
+        var s = '';
+        for (let j = 0; j < obj[i].wave.length; j++) {
+          s += obj[i].wave[j].type;
+          if (j != obj[i].wave.length - 1)
+            s += '+';
+        }
+        $('#waveTable tbody').find('tr').eq(i).find('td').eq(0).html(obj[i].waveName);
+        $('#waveTable tbody').find('tr').eq(i).find('td').eq(1).html(s);
+
+      }
+    }
+  </script>
+  <style>
+    table th,
+    td {
+      width: 600px;
+    }
+
+    #waveTable {
+      margin: 0px;
+    }
+
+    #waveTable thead {
+      display: block;
+      overflow-y: scroll;
+    }
+
+    #waveTable tbody {
+      display: block;
+      max-height: 300px;
+      overflow-y: scroll;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container-fluid">
+    <h1>波形仿真工具</h1>
+    </br>
+    <div>
+      <a href="#" class="btn btn-success" id="addWave" data-toggle="modal" data-target="#addModal">
+        <span class="glyphicon glyphicon-edit"></span> 添加
+      </a>
+      <a href="#" class="btn btn-danger" id="eraseWave" data-toggle="modal" data-target="#scModal">
+        <span class="glyphicon glyphicon-trash"></span> 删除
+      </a>
+      <a href="#" class="btn btn-primary" id="saveWave">
+        <span class="glyphicon glyphicon-floppy-save"></span> 保存
+      </a>
+      <a href="#" class="btn btn-warning" id="refreshWave">
+        <span class="glyphicon glyphicon-refresh"></span> 刷新
+      </a>
+    </div>
+    <div>
+      <table id="waveTable" class="table table-hover">
+        <thead>
+          <tr>
+            <th>名称</th>
+            <th>波形组成</th>
+            <th>配置</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td></td>
+            <td></td>
+            <td>
+              <a href="#" class="btn btn-info" id="xgbtn" data-toggle="modal" data-target="#myModal" onclick="fuck()">
+                信号配置 <span class="glyphicon glyphicon-pushpin"></span>
+              </a>
+            </td>
+          <tr>
+            <td></td>
+            <td></td>
+            <td>
+              <a href="#" class="btn btn-info" id="xgbtn" data-toggle="modal" data-target="#myModal" onclick="fuck()">
+                信号配置 <span class="glyphicon glyphicon-pushpin"></span>
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td></td>
+            <td></td>
+            <td>
+              <a href="#" class="btn btn-info" id="xgbtn" data-toggle="modal" data-target="#myModal" onclick="fuck()">
+                信号配置 <span class="glyphicon glyphicon-pushpin"></span>
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td></td>
+            <td></td>
+            <td>
+              <a href="#" class="btn btn-info" id="xgbtn" data-toggle="modal" data-target="#myModal" onclick="fuck()">
+                信号配置 <span class="glyphicon glyphicon-pushpin"></span>
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td></td>
+            <td></td>
+            <td>
+              <a href="#" class="btn btn-info" id="xgbtn" data-toggle="modal" data-target="#myModal" onclick="fuck()">
+                信号配置 <span class="glyphicon glyphicon-pushpin"></span>
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td></td>
+            <td></td>
+            <td>
+              <a href="#" class="btn btn-info" id="xgbtn" data-toggle="modal" data-target="#myModal" onclick="fuck()">
+                信号配置 <span class="glyphicon glyphicon-pushpin"></span>
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td></td>
+            <td></td>
+            <td>
+              <a href="#" class="btn btn-info" id="xgbtn" data-toggle="modal" data-target="#myModal" onclick="fuck()">
+                信号配置 <span class="glyphicon glyphicon-pushpin"></span>
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td></td>
+            <td></td>
+            <td>
+              <a href="#" class="btn btn-info" id="xgbtn" data-toggle="modal" data-target="#myModal" onclick="fuck()">
+                信号配置 <span class="glyphicon glyphicon-pushpin"></span>
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td></td>
+            <td></td>
+            <td>
+              <a href="#" class="btn btn-info" id="xgbtn" data-toggle="modal" data-target="#myModal" onclick="fuck()">
+                信号配置 <span class="glyphicon glyphicon-pushpin"></span>
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td></td>
+            <td></td>
+            <td>
+              <a href="#" class="btn btn-info" id="xgbtn" data-toggle="modal" data-target="#myModal">
+                信号配置 <span class="glyphicon glyphicon-pushpin"></span>
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <!--echarts-->
+  <div class="row" id="main" style="width: 1920px;height:400px;"></div>
+
+
+  <div class="modal fade" id="addModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header" style="background:#5bc0de;color: white">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+            &times;
+          </button>
+          <h3 class="modal-title" id="myModalLabel">
+            <span class="glyphicon glyphicon-pushpin"></span> 添加波形
+          </h3>
+        </div>
+        <div class="modal-body">
+          <div class="container">
+            <div class="row" style="margin-bottom:10px">
+              <div class="col-md-4">
+                <div class="input-group">
+                  <span class="input-group-addon">名称</span>
+                  <input type="text" class="form-control" id="name">
+                </div>
+              </div>
+              <div class="col-md-4 col-md-offset-3">
+                <a href="#" class="btn btn-success" id="tj">
+                  <span class="glyphicon glyphicon-edit"></span> 添加
+                </a>
+                <a href="#" class="btn btn-danger" id="sc" disabled="disabled">
+                  <span class="glyphicon glyphicon-trash"></span> 删除
+                </a>
+              </div>
+            </div>
+            <div class="row" style="margin-bottom:10px">
+              <div class="col-md-3">
+                <a href="#" class="list-group-item active"
+                  style="background:rgb(180,180,180);color: white;border-style:none">
+                  选择波形
+                </a>
+                <a href="#" class="list-group-item" id="const">常量</a>
+                <a href="#" class="list-group-item" id="pulse">脉冲</a>
+                <a href="#" class="list-group-item" id="slope">斜坡</a>
+                <a href="#" class="list-group-item" id="dualslope">双斜坡</a>
+                <a href="#" class="list-group-item" id="step">阶梯</a>
+                <a href="#" class="list-group-item" id="pstep">阶跃</a>
+                <a href="#" class="list-group-item" id="sin">正弦</a>
+              </div>
+              <div class="col-md-6">
+                <a href="#" class="list-group-item active"
+                  style="background:rgb(180,180,180);color: white;border-style:none">
+                  设置数据
+                </a>
+
+                <div id="constSet">
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">开始时间</span>
+                      <input type="text" class="form-control" id="constFt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">结束时间</span>
+                      <input type="text" class="form-control" id="constSt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">幅值</span>
+                      <input type="text" class="form-control" id="constAmp">
+                    </div>
+                  </a>
+                  <script>
+                    var constft, constst, constamp;
+                  </script>
+                </div>
+                <div id="slopeSet">
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">开始时间</span>
+                      <input type="text" class="form-control" id="slopeFt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">结束时间</span>
+                      <input type="text" class="form-control" id="slopeSt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第一次幅值</span>
+                      <input type="text" class="form-control" id="slopeFamp">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第二次幅值</span>
+                      <input type="text" class="form-control" id="slopeSamp">
+                    </div>
+                  </a>
+                  <script>
+                    var slopeft, slopest, slopefamp, slopesamp;
+                  </script>
+                </div>
+                <div id="pulseSet">
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">开始时间</span>
+                      <input type="text" class="form-control" id="pulseFt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">结束时间</span>
+                      <input type="text" class="form-control" id="pulseSt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">幅值</span>
+                      <input type="text" class="form-control" id="pulseAmp">
+                    </div>
+                  </a>
+                  <script>
+                    var pulseft, pulsest, pulseamp;
+                  </script>
+                </div>
+                <div id="dualslopeSet">
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第一次开始时间</span>
+                      <input type="text" class="form-control" id="dslopeFft">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第一次结束时间</span>
+                      <input type="text" class="form-control" id="dslopeFst">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第一次开始幅值</span>
+                      <input type="text" class="form-control" id="dslopeFfamp">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第一次结束幅值</span>
+                      <input type="text" class="form-control" id="dslopeFsamp">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第二次开始时间</span>
+                      <input type="text" class="form-control" id="dslopeSft">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第二次结束时间</span>
+                      <input type="text" class="form-control" id="dslopeSst">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第二次开始幅值</span>
+                      <input type="text" class="form-control" id="dslopeSfamp">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第二次结束幅值</span>
+                      <input type="text" class="form-control" id="dslopeSsamp">
+                    </div>
+                  </a>
+                  <script>
+                    var dslopefft, dslopefst, dslopeffamp, dslopefsamp, dslopesft, dslopesst, dslopesfamp, dslopessamp;
+                  </script>
+                </div>
+                <div id="stepSet">
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">开始时间</span>
+                      <input type="text" class="form-control" id="stepFt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">结束时间</span>
+                      <input type="text" class="form-control" id="stepSt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第一次幅值</span>
+                      <input type="text" class="form-control" id="stepAmp">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">阶梯高度</span>
+                      <input type="text" class="form-control" id="stepH">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">阶梯持续时间</span>
+                      <input type="text" class="form-control" id="stepDur">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">阶梯个数</span>
+                      <input type="text" class="form-control" id="stepNum">
+                    </div>
+                  </a>
+                  <script>
+                    var stepft, stepst, stepamp, steph, stepdur, stepnum;
+
+                  </script>
+                </div>
+                <div id="pstepSet">
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">开始时间</span>
+                      <input type="text" class="form-control" id="pstepFt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">结束时间</span>
+                      <input type="text" class="form-control" id="pstepSt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第一次幅值</span>
+                      <input type="text" class="form-control" id="pstepAmp">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">阶跃高度</span>
+                      <input type="text" class="form-control" id="pstepH">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">阶跃持续时间</span>
+                      <input type="text" class="form-control" id="pstepDur">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">阶跃个数</span>
+                      <input type="text" class="form-control" id="pstepNum">
+                    </div>
+                  </a>
+                  <script>
+                    var pstepft, pstepst, pstepamp, psteph, pstepdur, pstepnum;
+
+                  </script>
+                </div>
+                <div id="sinSet">
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">开始时间</span>
+                      <input type="text" class="form-control" id="sinFt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">结束时间</span>
+                      <input type="text" class="form-control" id="sinSt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">幅值</span>
+                      <input type="text" class="form-control" id="sinAmp">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">角速度</span>
+                      <input type="text" class="form-control" id="sinAv">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">相位差</span>
+                      <input type="text" class="form-control" id="sinDiff">
+                    </div>
+                  </a>
+                  <script>
+                    var sinft, sinst, sinamp, sinav, sindiff;
+                  </script>
+                </div>
+                <!-- <script type="text/javascript" src="/js/setwave.js"></script> -->
+                <script>
+                  let name;
+                  let data = [];
+                  let ji = 0;
+                  var newwave = {
+                    waveName: "",
+                    wave: []
+                  }
+                  $('#addWave').click(function () {
+                    var ttype;
+
+                    $('#constSet').hide();
+                    $('#slopeSet').hide();
+                    $('#pulseSet').hide();
+                    $('#dualslopeSet').hide();
+                    $('#stepSet').hide();
+                    $('#pstepSet').hide();
+                    $('#sinSet').hide();
+                    $('#const').click(function () {
+                      $('#constSet #constFt').val("");
+                      $('#constSet #constSt').val("");
+                      $('#constSet #constAmp').val("");
+                      var name = $('#name').val();
+                      ttype = "常量";
+                      $('#constSet').show();
+                      $('#slopeSet').hide();
+                      $('#pulseSet').hide();
+                      $('#dualslopeSet').hide();
+                      $('#stepSet').hide();
+                      $('#pstepSet').hide();
+                      $('#sinSet').hide();
+                      newwave.waveName = name;
+                    })
+                    $('#slope').click(function () {
+                      $('#slopeSet #slopeFt').val("");
+                      $('#slopeSet #slopeSt').val("");
+                      $('#slopeSet #slopeFamp').val("");
+                      $('#slopeSet #slopeSamp').val("");
+                      var name = $('#name').val();
+                      ttype = "斜坡";
+                      $('#constSet').hide();
+                      $('#slopeSet').show();
+                      $('#pulseSet').hide();
+                      $('#dualslopeSet').hide();
+                      $('#stepSet').hide();
+                      $('#pstepSet').hide();
+                      $('#sinSet').hide();
+                      newwave.waveName = name;
+                    })
+                    $('#pulse').click(function () {
+                      $('#pulseSet #pulseFt').val("");
+                      $('#pulseSet #pulseSt').val("");
+                      $('#pulseSet #pulseAmp').val("");
+                      var name = $('#name').val();
+                      ttype = "脉冲";
+                      $('#constSet').hide();
+                      $('#slopeSet').hide();
+                      $('#pulseSet').show();
+                      $('#dualslopeSet').hide();
+                      $('#stepSet').hide();
+                      $('#pstepSet').hide();
+                      $('#sinSet').hide();
+                      newwave.waveName = name;
+                    })
+                    $('#dualslope').click(function () {
+                      $('#dualslopeSet #dslopeFft').val("");
+                      $('#dualslopeSet #dslopeFst').val("");
+                      $('#dualslopeSet #dslopeFfamp').val("");
+                      $('#dualslopeSet #dslopeFsamp').val("");
+                      $('#dualslopeSet #dslopeSft').val("");
+                      $('#dualslopeSet #dslopeSst').val("");
+                      $('#dualslopeSet #dslopeSfamp').val("");
+                      $('#dualslopeSet #dslopeSsamp').val("");
+                      var name = $('#name').val();
+                      ttype = "双斜坡";
+                      $('#constSet').hide();
+                      $('#slopeSet').hide();
+                      $('#pulseSet').hide();
+                      $('#dualslopeSet').show();
+                      $('#stepSet').hide();
+                      $('#pstepSet').hide();
+                      $('#sinSet').hide();
+                      newwave.waveName = name;
+                    })
+                    $('#step').click(function () {
+                      $('#stepSet #stepFt').val("");
+                      $('#stepSet #stepSt').val("");
+                      $('#stepSet #stepAmp').val("");
+                      $('#stepSet #stepH').val("");
+                      $('#stepSet #stepDur').val("");
+                      $('#stepSet #stepNum').val("");
+                      var name = $('#name').val();
+                      ttype = "阶梯";
+                      $('#constSet').hide();
+                      $('#slopeSet').hide();
+                      $('#pulseSet').hide();
+                      $('#dualslopeSet').hide();
+                      $('#stepSet').show();
+                      $('#pstepSet').hide();
+                      $('#sinSet').hide();
+                      newwave.waveName = name;
+                    })
+                    $('#pstep').click(function () {
+                      $('#pstepSet #pstepFt').val("");
+                      $('#pstepSet #pstepSt').val("");
+                      $('#pstepSet #pstepAmp').val("");
+                      $('#pstepSet #pstepH').val("");
+                      $('#pstepSet #pstepDur').val("");
+                      $('#pstepSet #pstepNum').val("");
+                      var name = $('#name').val();
+                      ttype = "阶跃";
+                      $('#constSet').hide();
+                      $('#slopeSet').hide();
+                      $('#pulseSet').hide();
+                      $('#dualslopeSet').hide();
+                      $('#stepSet').hide();
+                      $('#pstepSet').show();
+                      $('#sinSet').hide();
+                      newwave.waveName = name;
+                    })
+                    $('#sin').click(function () {
+                      $('#sinSet #sinFt').val("");
+                      $('#sinSet #sinSt').val("");
+                      $('#sinSet #sinAmp').val("");
+                      $('#sinSet #sinAv').val("");
+                      $('#sinSet #sinDiff').val("");
+                      var name = $('#name').val();
+                      ttype = "正弦";
+                      $('#constSet').hide();
+                      $('#slopeSet').hide();
+                      $('#pulseSet').hide();
+                      $('#dualslopeSet').hide();
+                      $('#stepSet').hide();
+                      $('#pstepSet').hide();
+                      $('#sinSet').show();
+                      newwave.waveName = name;
+                    })
+                    $('#tj').unbind("click").click(function () {
+                      $('#addmain').show();
+                      switch (ttype) {
+                        case '常量':
+                          constft = $('#constSet #constFt').val();
+                          constst = $('#constSet #constSt').val();
+                          constamp = $('#constSet #constAmp').val();
+                          {
+                            let firstTime = constft;
+                            let secondTime = constst;
+                            let amp = constamp;
+                            for (let i = firstTime; i <= secondTime; i++) {
+                              data.push([ji, amp]);
+                              ji++;
+                            }
+                          }
+                          newwave.wave.push({ type: ttype, firstTime: constft, secondTime: constst, amp: constamp });
+                          break;
+                        case '斜坡':
+                          slopeft = $('#slopeSet #slopeFt').val();
+                          slopest = $('#slopeSet #slopeSt').val();
+                          slopefamp = $('#slopeSet #slopeFamp').val();
+                          slopesamp = $('#slopeSet #slopeSamp').val();
+                          {
+                            let b4, k4;
+                            let firstTime = slopeft;
+                            let secondTime = slopest;
+                            let firstamp = slopefamp;
+                            let secondamp = slopesamp;
+                            k4 = (firstamp - secondamp) / (firstTime - secondTime);
+                            b4 = firstamp - k4 * firstTime;
+                            for (let i = firstTime; i <= secondTime; i++) {
+                              data.push([ji, k4 * i + b4]);
+                              ji++;
+                            }
+                          }
+                          newwave.wave.push({ type: ttype, firstTime: slopeft, secondTime: slopest, firstamp: slopefamp, secondamp: slopesamp });
+                          break;
+                        case '脉冲':
+                          pulseft = $('#pulseSet #pulseFt').val();
+                          pulsest = $('#pulseSet #pulseSt').val();
+                          pulseamp = $('#pulseSet #pulseAmp').val();
+                          {
+                            let firstTime = pulseft;
+                            let secondTime = pulsest;
+                            let amp = pulseamp;
+                            for (let i = firstTime * 100; i < secondTime * 100; i++) {
+                              ji += 0.01;
+                              if ((0 | (i / 100)) % 2 == 0)
+                                data.push([ji, amp]);
+                              else {
+                                data.push([ji, 0]);
+                              }
+                            }
+                            ji++;
+                          }
+                          newwave.wave.push({ type: ttype, firstTime: pulseft, secondTime: pulsest, amp: pulseamp });
+                          break;
+                        case '双斜坡':
+                          dslopefft = $('#dualslopeSet #dslopeFft').val();
+                          dslopefst = $('#dualslopeSet #dslopeFst').val();
+                          dslopeffamp = $('#dualslopeSet #dslopeFfamp').val();
+                          dslopefsamp = $('#dualslopeSet #dslopeFsamp').val();
+                          dslopesft = $('#dualslopeSet #dslopeSft').val();
+                          dslopesst = $('#dualslopeSet #dslopeSst').val();
+                          dslopesfamp = $('#dualslopeSet #dslopeSfamp').val();
+                          dslopessamp = $('#dualslopeSet #dslopeSsamp').val();
+                          {
+                            let b5, k5, k55, b55, f;
+                            let ft5 = dslopefft;
+                            let st5 = dslopefst;
+                            let famp5 = dslopeffamp;
+                            let samp5 = dslopefsamp;
+                            let ft55 = dslopesft;
+                            let st55 = dslopesst;
+                            let famp55 = dslopesfamp;
+                            let samp55 = dslopessamp;
+                            k5 = (famp5 - samp5) / (ft5 - st5);
+                            b5 = famp5 - k5 * ft5;
+                            k55 = (famp55 - samp55) / (ft55 - st55);
+                            b55 = famp55 - k55 * ft55;
+                            f = k5 * st5 + b5;
+                            for (let i = ft5; i <= st55; i++) {
+                              if (i >= ft5 && i <= st5) {
+                                data.push([ji, k5 * i + b5]);
+                                ji++;
+                              }
+                              else if (i > st5 && i < ft55) {
+                                data.push([ji, f]);
+                                ji++;
+                              }
+                              else if (i >= ft55 && i <= st55) {
+                                data.push([ji, k55 * i + b55]);
+                                ji++;
+                              }
+                            }
+                          }
+                          newwave.wave.push({ type: ttype, ffirstTime: dslopefft, fsecondTime: dslopefst, ffamp: dslopeffamp, fsamp: dslopefsamp, sfirstTime: dslopesft, ssecondTime: dslopesst, sfamp: dslopesfamp, ssamp: dslopessamp });
+                          break;
+                        case '阶梯':
+                          stepft = $('#stepSet #stepFt').val();
+                          stepst = $('#stepSet #stepSt').val();
+                          stepamp = $('#stepSet #stepAmp').val();
+                          steph = $('#stepSet #stepH').val();
+                          stepdur = $('#stepSet #stepDur').val();
+                          stepnum = $('#stepSet #stepNum').val();
+                          {
+                            let firstTime = stepft;
+                            let secondTime = stepst;
+                            let amp = stepamp;
+                            let stepH = steph;
+                            let stepDur = stepdur;
+                            let stepNum = stepnum;
+                            let k2 = Number(amp);
+                            let h2 = Number(stepH);
+                            for (let i = firstTime; i <= secondTime; i++) {
+                              data.push([ji, k2]);
+                              ji++;
+                              if ((i - firstTime) % stepDur == 0) {
+                                k2 = k2 + h2;
+                              }
+                            }
+                          }
+                          newwave.wave.push({ type: ttype, firstTime: stepft, secondTime: stepst, amp: stepamp, stepH: steph, stepDur: stepdur, stepNum: stepnum });
+                          break;
+                        case '阶跃':
+                          pstepft = $('#pstepSet #pstepFt').val();
+                          pstepst = $('#pstepSet #pstepSt').val();
+                          pstepamp = $('#pstepSet #pstepAmp').val();
+                          psteph = $('#pstepSet #pstepH').val();
+                          pstepdur = $('#pstepSet #pstepDur').val();
+                          pstepnum = $('#pstepSet #pstepNum').val();
+                          {
+                            let firstTime = pstepft;
+                            let secondTime = pstepst;
+                            let amp = pstepamp;
+                            let stepH = psteph;
+                            let stepDur = pstepdur;
+                            let stepNum = pstepnum;
+                            let k3 = Number(amp);
+                            let h3 = Number(stepH);
+                            for (let i = firstTime * 100; i <= secondTime * 100; i++) {
+                              if ((i / 100 - firstTime) % stepDur == 0 && i != firstTime * 100) {
+                                k3 = k3 + h3;
+                                data.push([ji, '']);
+                                ji += 0.01;
+                              }
+                              else {
+                                data.push([ji, k3]);
+                                ji += 0.01;
+                              }
+                            }
+                          }
+                          newwave.wave.push({ type: ttype, firstTime: pstepft, secondTime: pstepst, amp: pstepamp, stepH: psteph, stepDur: pstepdur, stepNum: pstepnum });
+                          break;
+                        case '正弦':
+                          sinft = $('#sinSet #sinFt').val();
+                          sinst = $('#sinSet #sinSt').val();
+                          sinamp = $('#sinSet #sinAmp').val();
+                          sinav = $('#sinSet #sinAv').val();
+                          sindiff = $('#sinSet #sinDiff').val();
+                          {
+                            let y_ji = 0;
+                            let firstTime = sinft;
+                            let secondTime = sinst;
+                            let amp = sinamp;
+                            let av = sinav;
+                            let diff = sindiff;
+                            function sin_data(x) {
+                              return amp * Math.sin(x * Math.PI * av + diff);
+                            }
+                            for (let i = firstTime * 10; i <= secondTime * 10; i++) {
+                              y_ji = sin_data(ji);
+                              data.push([ji, y_ji]);
+                              ji += 0.1;
+                            }
+                          }
+                          newwave.wave.push({ type: ttype, firstTime: sinft, secondTime: sinst, amp: sinamp, av: sinav, diff: sindiff });
+                          break;
+                      }
+                      console.log(obj);
+                      console.log(newwave);
+                      console.log(ttype);
+                      //
+                      let chartDom = document.getElementById('addmain');
+                      let myChart = echarts.init(chartDom);
+                      let Option = {
+                        animation: false,
+                        title: {
+                          text: newwave.waveName,
+                          left: 20,
+                        },
+
+                        xAxis: {
+                          name: 'x',
+                          minorTick: {
+                            show: true
+                          },
+                          minorSplitLine: {
+                            show: true
+                          }
+                        },
+                        yAxis: {
+                          name: 'y',
+                          min: -100,
+                          max: 100,
+                          minorTick: {
+                            show: true
+                          },
+                          minorSplitLine: {
+                            show: true
+                          }
+                        },
+                        dataZoom: [{
+                          show: true,
+                          type: 'inside',
+                          filterMode: 'none',
+                          xAxisIndex: [0],
+                          startValue: -20,
+                          endValue: 20
+                        }, {
+                          show: true,
+                          type: 'inside',
+                          filterMode: 'none',
+                          yAxisIndex: [0],
+                          startValue: -20,
+                          endValue: 20
+                        }],
+                        series: [
+                          {
+                            type: 'line',
+                            showSymbol: false,
+                            color: ['#337ab7'],
+                            clip: true,
+                            data: data,
+                          }
+                        ]
+                      };
+                      Option && myChart.setOption(Option);
+                      //
+                    })
+                  })
+
+                </script>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-12" id="addmain" style="width: 800px;height:300px;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <a href="#" class="btn btn-info" data-dismiss="modal" id="ok">
+            <span class="glyphicon glyphicon-ok"></span> 确定
+          </a>
+          <a href="#" class="btn btn-default" data-dismiss="modal" id="cancel">
+            <span class="glyphicon glyphicon-remove"></span> 取消
+          </a>
+          <script>
+            $('#ok').click(function () {
+              obj.push(newwave);
+              data.length = 0;
+              ji = 0;
+              $('#addmain').hide();
+              newwave = {
+                waveName: "",
+                wave: []
+              }
+              //obj.push(newwave);
+              getWaveList();
+            })
+            $('#cancel').click(function () {
+              data.length = 0;
+              ji = 0;
+              $('#addmain').hide();
+            })
+          </script>
+        </div>
+      </div><!-- /.modal-content -->
+    </div><!-- /.modal -->
+  </div>
+
+  <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="xgModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header" style="background:#5bc0de;color: white">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+            &times;
+          </button>
+          <h3 class="modal-title" id="myModalLabel">
+            <span class="glyphicon glyphicon-pushpin"></span> 修改波形
+          </h3>
+        </div>
+        <div class="modal-body">
+          <div class="container">
+            <div class="row" style="margin-bottom:10px">
+              <div class="col-md-4">
+                <div class="input-group">
+                  <span class="input-group-addon">名称</span>
+                  <input type="text" class="form-control" id="rename">
+                </div>
+              </div>
+              <div class="col-md-4 col-md-offset-3">
+                <a href="#" class="btn btn-success" id="retj">
+                  <span class="glyphicon glyphicon-edit"></span> 添加
+                </a>
+                <a href="#" class="btn btn-danger" id="resc" disabled="disabled">
+                  <span class="glyphicon glyphicon-trash"></span> 删除
+                </a>
+              </div>
+            </div>
+            <div class="row" style="margin-bottom:10px">
+              <div class="col-md-3">
+                <a href="#" class="list-group-item active"
+                  style="background:rgb(180,180,180);color: white;border-style:none">
+                  选择波形
+                </a>
+                <a href="#" class="list-group-item" id="reconst">常量</a>
+                <a href="#" class="list-group-item" id="repulse">脉冲</a>
+                <a href="#" class="list-group-item" id="reslope">斜坡</a>
+                <a href="#" class="list-group-item" id="redualslope">双斜坡</a>
+                <a href="#" class="list-group-item" id="restep">阶梯</a>
+                <a href="#" class="list-group-item" id="repstep">阶跃</a>
+                <a href="#" class="list-group-item" id="resin">正弦</a>
+              </div>
+              <div class="col-md-6">
+                <a href="#" class="list-group-item active"
+                  style="background:rgb(180,180,180);color: white;border-style:none">
+                  设置数据
+                </a>
+                <div id="constRe">
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">开始时间</span>
+                      <input type="text" class="form-control" id="RconstFt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">结束时间</span>
+                      <input type="text" class="form-control" id="RconstSt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">幅值</span>
+                      <input type="text" class="form-control" id="RconstAmp">
+                    </div>
+                  </a>
+                  <script>
+                    var rconstft, rconstst, rconstamp;
+                  </script>
+                </div>
+                <div id="slopeRe">
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">开始时间</span>
+                      <input type="text" class="form-control" id="RslopeFt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">结束时间</span>
+                      <input type="text" class="form-control" id="RslopeSt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第一次幅值</span>
+                      <input type="text" class="form-control" id="RslopeFamp">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第二次幅值</span>
+                      <input type="text" class="form-control" id="RslopeSamp">
+                    </div>
+                  </a>
+                  <script>
+                    var rslopeft, rslopest, rslopefamp, rslopesamp;
+                  </script>
+                </div>
+                <div id="pulseRe">
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">开始时间</span>
+                      <input type="text" class="form-control" id="RpulseFt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">结束时间</span>
+                      <input type="text" class="form-control" id="RpulseSt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">幅值</span>
+                      <input type="text" class="form-control" id="RpulseAmp">
+                    </div>
+                  </a>
+                  <script>
+                    var rpulseft, rpulsest, rpulseamp;
+                  </script>
+                </div>
+                <div id="dualslopeRe">
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第一次开始时间</span>
+                      <input type="text" class="form-control" id="RdslopeFft">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第一次结束时间</span>
+                      <input type="text" class="form-control" id="RdslopeFst">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第一次开始幅值</span>
+                      <input type="text" class="form-control" id="RdslopeFfamp">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第一次结束幅值</span>
+                      <input type="text" class="form-control" id="RdslopeFsamp">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第二次开始时间</span>
+                      <input type="text" class="form-control" id="RdslopeSft">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第二次结束时间</span>
+                      <input type="text" class="form-control" id="RdslopeSst">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第二次开始幅值</span>
+                      <input type="text" class="form-control" id="RdslopeSfamp">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第二次结束幅值</span>
+                      <input type="text" class="form-control" id="RdslopeSsamp">
+                    </div>
+                  </a>
+                  <script>
+                    var rdslopefft, rdslopefst, rdslopeffamp, rdslopefsamp, rdslopesft, rdslopesst, rdslopesfamp, rdslopessamp;
+                  </script>
+                </div>
+                <div id="stepRe">
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">开始时间</span>
+                      <input type="text" class="form-control" id="RstepFt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">结束时间</span>
+                      <input type="text" class="form-control" id="RstepSt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第一次幅值</span>
+                      <input type="text" class="form-control" id="RstepAmp">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">阶梯高度</span>
+                      <input type="text" class="form-control" id="RstepH">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">阶梯持续时间</span>
+                      <input type="text" class="form-control" id="RstepDur">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">阶梯个数</span>
+                      <input type="text" class="form-control" id="RstepNum">
+                    </div>
+                  </a>
+                  <script>
+                    var rstepft, rstepst, rstepamp, rsteph, rstepdur, rstepnum;
+
+                  </script>
+                </div>
+                <div id="pstepRe">
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">开始时间</span>
+                      <input type="text" class="form-control" id="RpstepFt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">结束时间</span>
+                      <input type="text" class="form-control" id="RpstepSt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">第一次幅值</span>
+                      <input type="text" class="form-control" id="RpstepAmp">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">阶跃高度</span>
+                      <input type="text" class="form-control" id="RpstepH">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">阶跃持续时间</span>
+                      <input type="text" class="form-control" id="RpstepDur">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">阶跃个数</span>
+                      <input type="text" class="form-control" id="RpstepNum">
+                    </div>
+                  </a>
+                  <script>
+                    var rpstepft, rpstepst, rpstepamp, rpsteph, rpstepdur, rpstepnum;
+
+                  </script>
+                </div>
+                <div id="sinRe">
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">开始时间</span>
+                      <input type="text" class="form-control" id="RsinFt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">结束时间</span>
+                      <input type="text" class="form-control" id="RsinSt">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">幅值</span>
+                      <input type="text" class="form-control" id="RsinAmp">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">角速度</span>
+                      <input type="text" class="form-control" id="RsinAv">
+                    </div>
+                  </a>
+                  <a href="#" class="list-group-item">
+                    <div class="input-group">
+                      <span class="input-group-addon">相位差</span>
+                      <input type="text" class="form-control" id="RsinDiff">
+                    </div>
+                  </a>
+                  <script>
+                    var rsinft, rsinst, rsinamp, rsinav, rsindiff;
+                  </script>
+                </div>
+                <!-- <script type="text/javascript" src="/js/setwave.js"></script> -->
+                <script>
+                  var rewave = {
+                    waveName: "",
+                    wave: []
+                  };
+                  function fuck() {
+                    var rtype = "";
+                    $('#waveTable tbody tr').each(function (i) {
+                      $('#waveTable tbody tr').eq(i).click(function () {
+                        x=i;
+                      })
+                    })
+                    $('#constRe').hide();
+                    $('#slopeRe').hide();
+                    $('#pulseRe').hide();
+                    $('#dualslopeRe').hide();
+                    $('#stepRe').hide();
+                    $('#pstepRe').hide();
+                    $('#sinRe').hide();
+
+                    $('#reconst').click(function () {
+                      $('#constRe #RconstFt').val("");
+                      $('#constRe #RconstSt').val("");
+                      $('#constRe #RconstAmp').val("");
+                      var rname = $('#rename').val();
+                      rtype = "常量";
+                      $('#constRe').show();
+                      $('#slopeRe').hide();
+                      $('#pulseRe').hide();
+                      $('#dualslopeRe').hide();
+                      $('#stepRe').hide();
+                      $('#pstepRe').hide();
+                      $('#sinRe').hide();
+                      rewave.waveName = rname;
+                    })
+                    $('#reslope').click(function () {
+                      $('#slopeRe #RslopeFt').val("");
+                      $('#slopeRe #RslopeSt').val("");
+                      $('#slopeRe #RslopeFamp').val("");
+                      $('#slopeRe #RslopeSamp').val("");
+                      var rname = $('#rename').val();
+                      rtype = "斜坡";
+                      $('#constRe').hide();
+                      $('#slopeRe').show();
+                      $('#pulseRe').hide();
+                      $('#dualslopeRe').hide();
+                      $('#stepRe').hide();
+                      $('#pstepRe').hide();
+                      $('#sinRe').hide();
+                      rewave.waveName = rname;
+                    })
+                    $('#repulse').click(function () {
+                      $('#pulseRe #RpulseFt').val("");
+                      $('#pulseRe #RpulseSt').val("");
+                      $('#pulseRe #RpulseAmp').val("");
+                      var rname = $('#rename').val();
+                      rtype = "脉冲";
+                      $('#constRe').hide();
+                      $('#slopeRe').hide();
+                      $('#pulseRe').show();
+                      $('#dualslopeRe').hide();
+                      $('#stepRe').hide();
+                      $('#pstepRe').hide();
+                      $('#sinRe').hide();
+                      rewave.waveName = rname;
+                    })
+                    $('#redualslope').click(function () {
+                      $('#dualslopeRe #RdslopeFft').val("");
+                      $('#dualslopeRe #RdslopeFst').val("");
+                      $('#dualslopeRe #RdslopeFfamp').val("");
+                      $('#dualslopeRe #RdslopeFsamp').val("");
+                      $('#dualslopeRe #RdslopeSft').val("");
+                      $('#dualslopeRe #RdslopeSst').val("");
+                      $('#dualslopeRe #RdslopeSfamp').val("");
+                      $('#dualslopeRe #RdslopeSsamp').val("");
+                      var rname = $('#rename').val();
+                      rtype = "双斜坡";
+                      $('#constRe').hide();
+                      $('#slopeRe').hide();
+                      $('#pulseRe').hide();
+                      $('#dualslopeRe').show();
+                      $('#stepRe').hide();
+                      $('#pstepRe').hide();
+                      $('#sinRe').hide();
+                      rewave.waveName = rname;
+                    })
+                    $('#restep').click(function () {
+                      $('#stepRe #RstepFt').val("");
+                      $('#stepRe #RstepSt').val("");
+                      $('#stepRe #RstepAmp').val("");
+                      $('#stepRe #RstepH').val("");
+                      $('#stepRe #RstepDur').val("");
+                      $('#stepRe #RstepNum').val("");
+                      var rname = $('#rename').val();
+                      rtype = "阶梯";
+                      $('#constRe').hide();
+                      $('#slopeRe').hide();
+                      $('#pulseRe').hide();
+                      $('#dualslopeRe').hide();
+                      $('#stepRe').show();
+                      $('#pstepRe').hide();
+                      $('#sinRe').hide();
+                      rewave.waveName = rname;
+                    })
+                    $('#repstep').click(function () {
+                      $('#pstepRe #RpstepFt').val("");
+                      $('#pstepRe #RpstepSt').val("");
+                      $('#pstepRe #RpstepAmp').val("");
+                      $('#pstepRe #RpstepH').val("");
+                      $('#pstepRe #RpstepDur').val("");
+                      $('#pstepRe #RpstepNum').val("");
+                      var rname = $('#rename').val();
+                      rtype = "阶跃";
+                      $('#constRe').hide();
+                      $('#slopeRe').hide();
+                      $('#pulseRe').hide();
+                      $('#dualslopeRe').hide();
+                      $('#stepRe').hide();
+                      $('#pstepRe').show();
+                      $('#sinRe').hide();
+                      rewave.waveName = rname;
+                    })
+                    $('#resin').click(function () {
+                      $('#sinRe #RsinFt').val("");
+                      $('#sinRe #RsinSt').val("");
+                      $('#sinRe #RsinAmp').val("");
+                      $('#sinRe #RsinAv').val("");
+                      $('#sinRe #RsinDiff').val("");
+                      var rname = $('#rename').val();
+                      rtype = "正弦";
+                      $('#constRe').hide();
+                      $('#slopeRe').hide();
+                      $('#pulseRe').hide();
+                      $('#dualslopeRe').hide();
+                      $('#stepRe').hide();
+                      $('#pstepRe').hide();
+                      $('#sinRe').show();
+                      rewave.waveName = rname;
+                    })
+                    $('#retj').unbind("click").click(function () {
+                      switch (rtype) {
+                        case '常量':
+                          rconstft = $('#constRe #RconstFt').val();
+                          rconstst = $('#constRe #RconstSt').val();
+                          rconstamp = $('#constRe #RconstAmp').val();
+                          rewave.wave.push({ type: rtype, firstTime: rconstft, secondTime: rconstst, amp: rconstamp });
+                          break;
+                        case '斜坡':
+                          rslopeft = $('#slopeRe #RslopeFt').val();
+                          rslopest = $('#slopeRe #RslopeSt').val();
+                          rslopefamp = $('#slopeRe #RslopeFamp').val();
+                          rslopesamp = $('#slopeRe #RslopeSamp').val();
+                          rewave.wave.push({ type: rtype, firstTime: rslopeft, secondTime: rslopest, firstamp: rslopefamp, secondamp: rslopesamp });
+                          break;
+                        case '脉冲':
+                          rpulseft = $('#pulseRe #RpulseFt').val();
+                          rpulsest = $('#pulseRe #RpulseSt').val();
+                          rpulseamp = $('#pulseRe #RpulseAmp').val();
+                          rewave.wave.push({ type: rtype, firstTime: rpulseft, secondTime: rpulsest, amp: rpulseamp });
+                          break;
+                        case '双斜坡':
+                          rdslopefft = $('#dualslopeRe #RdslopeFft').val();
+                          rdslopefst = $('#dualslopeRe #RdslopeFst').val();
+                          rdslopeffamp = $('#dualslopeRe #RdslopeFfamp').val();
+                          rdslopefsamp = $('#dualslopeRe #RdslopeFsamp').val();
+                          rdslopesft = $('#dualslopeRe #RdslopeSft').val();
+                          rdslopesst = $('#dualslopeRe #RdslopeSst').val();
+                          rdslopesfamp = $('#dualslopeRe #RdslopeSfamp').val();
+                          rdslopessamp = $('#dualslopeRe #RdslopeSsamp').val();
+                          rewave.wave.push({ type: rtype, ffirstTime: rdslopefft, fsecondTime: rdslopefst, ffamp: rdslopeffamp, fsamp: rdslopefsamp, sfirstTime: rdslopesft, ssecondTime: rdslopesst, sfamp: rdslopesfamp, ssamp: rdslopessamp });
+                          break;
+                        case '阶梯':
+                          rstepft = $('#stepRe #RstepFt').val();
+                          rstepst = $('#stepRe #RstepSt').val();
+                          rstepamp = $('#stepRe #RstepAmp').val();
+                          rsteph = $('#stepRe #RstepH').val();
+                          rstepdur = $('#stepRe #RstepDur').val();
+                          rstepnum = $('#stepRe #RstepNum').val();
+                          rewave.wave.push({ type: rtype, firstTime: rstepft, secondTime: rstepst, amp: rstepamp, stepH: rsteph, stepDur: rstepdur, stepNum: rstepnum });
+                          break;
+                        case '阶跃':
+                          rpstepft = $('#pstepRe #RpstepFt').val();
+                          rpstepst = $('#pstepRe #RpstepSt').val();
+                          rpstepamp = $('#pstepRe #RpstepAmp').val();
+                          rpsteph = $('#pstepRe #RpstepH').val();
+                          rpstepdur = $('#pstepRe #RpstepDur').val();
+                          rpstepnum = $('#pstepRe #RpstepNum').val();
+                          rewave.wave.push({ type: rtype, firstTime: rpstepft, secondTime: rpstepst, amp: rpstepamp, stepH: rpsteph, stepDur: rpstepdur, stepNum: rpstepnum });
+                          break;
+                        case '正弦':
+                          rsinft = $('#sinRe #RsinFt').val();
+                          rsinst = $('#sinRe #RsinSt').val();
+                          rsinamp = $('#sinRe #RsinAmp').val();
+                          rsinav = $('#sinRe #RsinAv').val();
+                          rsindiff = $('#sinRe #RsinDiff').val();
+                          rewave.wave.push({ type: rtype, firstTime: rsinft, secondTime: rsinst, amp: rsinamp, av: rsinav, diff: rsindiff });
+                          break;
+                      }
+                      //console.log(obj);
+                      console.log(rewave);
+                      console.log(rtype);
+                    })
+                  }
+                </script>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <a href="#" class="btn btn-info" data-dismiss="modal" id="reok">
+            <span class="glyphicon glyphicon-ok"></span> 确定
+          </a>
+          <a href="#" class="btn btn-default" data-dismiss="modal">
+            <span class="glyphicon glyphicon-remove"></span> 取消
+          </a>
+          <script>
+            $('#reok').click(function () {
+              obj[x] = rewave;
+              rewave = {
+                waveName: "",
+                wave: []
+              }
+              //obj.push(newwave);
+              $('#main').hide();
+              getWaveList();
+              console.log(obj);
+            })
+          </script>
+        </div>
+      </div><!-- /.modal-content -->
+    </div><!-- /.modal -->
+  </div>
+
+  <div class="modal fade" id="scModal" tabindex="-1" role="dialog" aria-labelledby="scModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header" style="background:#d9534f;color: white">
+          <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+            &times;
+          </button>
+          <h3 class="modal-title" id="myModalLabel">
+            <span class="glyphicon glyphicon-remove"></span> 删除波形
+          </h3>
+        </div>
+        <div class="modal-body">
+          <h3>请输入要删除的波形编号:</h3>
+          <div class="input-group">
+            <input type="text" class="form-control" id="scid">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <a href="#" class="btn btn-danger" data-dismiss="modal" id="scok">
+            <span class="glyphicon glyphicon-ok"></span> 确定
+          </a>
+          <a href="#" class="btn btn-default" data-dismiss="modal">
+            <span class="glyphicon glyphicon-remove"></span> 取消
+          </a>
+          <script>
+            $('#scok').click(function () {
+              var number = $('#scid').val();
+              obj.splice(number - 1, 1);
+              getWaveList();
+              console.log(obj);
+            })
+          </script>
+        </div>
+      </div><!-- /.modal-content -->
+    </div><!-- /.modal -->
+  </div>
+
+  <script>
+    var s, obj;
+
+    $(document).ready(function () {
+      /*列表生成*/
+      getWaveList();
+      $('#refreshWave').unbind('click').click(function () {
+        $('#main').show();
+        getWaveList();
+      })
+      /*图像*/
+      $('#waveTable tbody tr').each(function (i) {
+        $('#waveTable tbody tr').eq(i).click(function () {
+          showWave(obj[i], "main");
+        })
+      })
+      /*保存*/
+      $('#saveWave').click(function () {
+        var str = JSON.stringify(obj);
+        var blob = new Blob([str], { type: "json/plain;charset=utf-8" });
+        saveAs(blob, "wave.json");
+      })
+    });
+  </script>
+
+</body>
+
+</html>
